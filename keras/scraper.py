@@ -1,4 +1,3 @@
-import pandas as pd
 import praw
 
 def scrape(client_id, client_secret, user_agent, subreddit):
@@ -31,7 +30,3 @@ def read_scrape(subreddit):
     posts = file_sr.read().split("\r")
     for i in range(len(posts)):
         posts[i] = posts[i].split(";;")
-scrape("WjcoN3aHxXLwUA", "ZFOnZNObuAFuTiJw_DHkOnTOAlI", "showerthoughts_scraper", "Showerthoughts")
-read_scrape("Showerthoughts")
-scrape("MN_P-UrbyJE4lg", "4zlX2qSuNU6dG_Qd_WiZNZlfE_o", "programmerhumor_scraper", "ProgrammerHumor")
-read_scrape("ProgrammerHumor")
