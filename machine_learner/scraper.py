@@ -14,7 +14,7 @@ def write_scrape(file_sr, post):
             )
         )
 
-def scrape(client_id, client_secret, user_agent, subreddit):
+def new_scrape(client_id, client_secret, user_agent, subreddit):
     reddit = praw.Reddit(
         client_id=client_id,
         client_secret=client_secret,
@@ -25,6 +25,24 @@ def scrape(client_id, client_secret, user_agent, subreddit):
     sr = reddit.subreddit(subreddit)
     for post in sr.top(limit=10000):
         write_scrape(file_sr, post)
+    for post in sr.hot(limit=1000):
+        write_scrape(file_sr, post)
+    for post in sr.random_rising(limit=1000):
+        write_scrape(file_sr, post)
+    for post in sr.random_rising(limit=1000):
+        write_scrape(file_sr, post)
+    file_sr.close()
+    old_scrape(client_id, client_secret, user_agent, subreddit)
+
+def old_scrape(client_id, client_secret, user_agent, subreddit):
+    reddit = praw.Reddit(
+        client_id=client_id,
+        client_secret=client_secret,
+        user_agent=user_agent,
+    )
+
+    file_sr = open("data/r_{subreddit}.txt".format(subreddit=subreddit), "a")
+    sr = reddit.subreddit(subreddit)
     for post in sr.hot(limit=1000):
         write_scrape(file_sr, post)
     for post in sr.random_rising(limit=1000):
