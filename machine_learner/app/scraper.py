@@ -14,11 +14,11 @@ def write_scrape(file_sr, post):
                     url=post.url,
                     num_comments=post.num_comments,
                     selftext=post.selftext.encode("unicode_escape"),
-                    created=post.created.encode("unicode_escape"),
+                    created=post.created,
                 )
             )
     except:
-        print(sys.exc_info()[0])
+        pass
 
 def new_scrape(client_id, client_secret, user_agent, subreddit):
     reddit = praw.Reddit(
@@ -41,7 +41,7 @@ def old_scrape(client_id, client_secret, user_agent, subreddit):
         user_agent=user_agent,
     )
 
-    file_sr = open(os.path.join( "..", "datasets", "r_{subreddit}.csv".format(subreddit=subreddit)), "a")
+    file_sr = open(os.path.join( "..", "datasets", "r_{subreddit}.csv".format(subreddit=subreddit)), "a+")
     sr = reddit.subreddit(subreddit)
     for post in sr.hot(limit=1000):
         write_scrape(file_sr, post)
@@ -57,5 +57,3 @@ def read_scrape(subreddit):
     posts = file_sr.read().split("\r")
     for i in range(len(posts)):
         posts[i] = posts[i].split(";;;;")
-
-new_scrape("DaU5bwDS_Olvgw", "sm3iiYJI6BhFTonBEJtdGiIZOMs", "reddit_scraper", "Showerthoughts")
