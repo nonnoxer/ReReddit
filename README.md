@@ -5,4 +5,4 @@ Flask app
 keras demo
 
 ## Credits
-https://stanford.edu/~shervine/blog/keras-how-to-generate-data-on-the-fly
+https://www.pyimagesearch.com/2019/01/21/regression-with-keras/
