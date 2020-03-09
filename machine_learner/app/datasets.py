@@ -6,23 +6,19 @@ import pandas as pd
 from sklearn.feature_extraction.text import CountVectorizer
 
 def load_post_attr(subreddit):
-    cols = ["title", "score", "id", "subreddit", "url", "num_comments", "selftext", "created"]
-    input_path = os.path.join("..", "datasets", "r_{subreddit}.csv".format(subreddit=subreddit))
-    df = pd.read_csv(input_path, sep=";;;;", header=None, names=cols)
+    input_path = os.path.join(
+        "..", "datasets", "r_{subreddit}.csv".format(subreddit=subreddit))
+    df = pd.read_csv(input_path, sep=";;;;", header=None, names=None)
     return df
 
+
 def process_post_attr(df):
+    cols = ["title", "score", "id", "subreddit",
+            "url", "num_comments", "selftext", "created"]
+    df.columns = cols
     # Text processing
-    title_vectorizer = CountVectorizer()
-    title_vectorizer.fit(df["title"])
-    title_vectorizer.transform(df["title"]).toarray()
-    selftext_vectorizer = CountVectorizer()
-    selftext_vectorizer.fit(df["selftext"])
-    selftext_vectorizer.transform(df["selftext"]).toarray()
+    dataset = []
+    for i in df.index:
+        dataset.append(CountVectorizer().fit_transform([df.loc[i, "title"]]).toarray())
 
-    # stacc
-    dataset = np.hstack([title_vectorizer, selftext_vectorizer])
-
-    return dataset
-
-print(process_post_attr(load_post_attr("Showerthoughts")))
+    return (dataset, df["score"])
