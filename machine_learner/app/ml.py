@@ -1,17 +1,17 @@
 import numpy as np
-from sklearn.model_selection import train_test_split
 
-import datasets
-import models
+from machine_learner.app.data import process_data
+from machine_learner.app.models import create_model
 
-df = datasets.load_post_attr("Showerthoughts")
 
-(train, test) = train_test_split(df, test_size=0.25, random_state=42)
+def generate_model(subreddit):
+    (trainX, testX, trainY, testY) = process_data(subreddit)
 
-(trainX, trainY) = datasets.process_post_attr(train)
-(testX, testY) = datasets.process_post_attr(test)
+    model = create_model(trainX, True)
 
-model = models.mlp(trainX, True)
+    model.fit(trainX, trainY, validation_data=(testX, testY),
+            epochs=4, batch_size=64)
 
-model.fit(trainX, trainY, validation_data=(testX, testY),
-          epochs=200, batch_size=8)
+    print(model.evaluate(testX, testY, verbose=1))
+
+    return model
