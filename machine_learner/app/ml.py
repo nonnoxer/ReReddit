@@ -10,8 +10,6 @@ def generate_model(subreddit):
     model = create_model(trainX, True)
 
     model.fit(trainX, trainY, validation_data=(testX, testY),
-            epochs=4, batch_size=64)
-
-    print(model.evaluate(testX, testY, verbose=1))
+            epochs=2, batch_size=8)
 
     return model

@@ -1,5 +1,4 @@
 import web_app.backend.app
 from machine_learner.app.ml import generate_model
 
-print(generate_model("Showerthoughts"))
-web_app.app.run()
+generate_model("Showerthoughts").save("machine_learner/models/Showerthoughts_model.h5")
