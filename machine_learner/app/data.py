@@ -12,7 +12,7 @@ def process_data(subreddit):
     cols = ["title", "score", "id", "subreddit",
             "url", "num_comments", "selftext", "created"]
     input_path = os.path.join(
-        "machine_learner", "datasets", "r_{subreddit}.csv".format(subreddit=subreddit))
+        "machine_learner", "datasets", "{subreddit}.csv".format(subreddit=subreddit))
     df = pd.read_csv(input_path, sep=";;;;", header=None, names=cols)
 
     (train, test) = train_test_split(df, test_size=0.25, random_state=42)
@@ -20,8 +20,8 @@ def process_data(subreddit):
     # Text processing
     title_vectorizer = CountVectorizer()
     title_vectorizer.fit(df["title"])
-    trainX = title_vectorizer.transform(train["title"])
-    testX = title_vectorizer.transform(test["title"])
+    trainX = title_vectorizer.transform(train["title"]).toarray()
+    testX = title_vectorizer.transform(test["title"]).toarray()
     
     # Y processing
     score_scaler = StandardScaler()

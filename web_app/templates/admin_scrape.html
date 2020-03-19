@@ -1,0 +1,14 @@
+<!DOCTYPE html>
+<head>
+    <meta charset="utf-8">
+</head>
+<body>
+    <h1>Scrape a subreddit</h1>
+    <form action="/admin/scrape/done" method="POST">
+        <input type="text" name="subreddit" placeholder="Subreddit"><br>
+        <input type="checkbox" name="title" id="title"><label for="title">Title</label><br>
+        <input type="checkbox" name="selftext" id="selftext"><label for="selftext">Selftext</label><br>
+        <input type="checkbox" name="link" id="link"><label for="link">Link</label><br>
+        <input type="submit" value="Scrape">
+    </form>
+</body>
