@@ -1,0 +1,1 @@
+web: gunicorn -w 4 app:web_app/app

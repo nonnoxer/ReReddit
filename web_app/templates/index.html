@@ -6,8 +6,10 @@
     <h1>January</h1>
     <p>So named as the mythological god Janus has 2 heads, which look into the past and future</p>
     <p>To analyse your reddit posts and predict how good it is</p>
-    <form action="/submit">
+    <form action="/submit" id="submit" method="POST" enctype="multipart/form-data">
         <input type="text" name="title" placeholder="title"><br>
+        <textarea name="selftext" form="submit"></textarea><br>
+        <input type="file" name="link"><br>
         <input type="submit">
     </form>
 </body>

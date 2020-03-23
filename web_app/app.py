@@ -16,6 +16,14 @@ def get_model(subreddit):
 def root():
     return render_template("index.html")
 
+@app.route("/submit", methods=["POST"])
+def submit():
+    title = request.form["title"]
+    selftext = request.form["selftext"]
+    if "link" in request.files:
+        link = request.files["link"]
+    return render_template("results.html", title=title, selftext=selftext)
+
 @app.route("/r/<subreddit>")
 def r_subreddit(subreddit):
     model = get_model(subreddit)
