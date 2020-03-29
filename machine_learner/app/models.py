@@ -3,7 +3,31 @@ from tensorflow_core.python.keras.api._v2.keras.layers import Conv2D, Dense, Dro
 from tensorflow_core.python.keras.api._v2.keras.models import Sequential
 
 
-def create_model(dim, regress=False):
+def title_model(dim):
+    model = Sequential()
+    #model.add(Embedding(len(dim) + 1, 8))
+    #model.add(CuDNNLSTM(8, return_sequences=True))
+    #model.add(CuDNNLSTM(8))
+    model.add(Dense(16, activation="tanh"))
+    model.add(Dense(16, activation="tanh"))
+    model.add(Dense(1, activation="relu"))
+    model.compile(loss='mse', optimizer='adadelta', metrics=['mse', 'mae'])
+
+    return model
+
+def selftext_model(dim):
+    model = Sequential()
+    #model.add(Embedding(len(dim) + 1, 8))
+    #model.add(CuDNNLSTM(8, return_sequences=True))
+    #model.add(CuDNNLSTM(8))
+    model.add(Dense(16, activation="tanh"))
+    model.add(Dense(16, activation="tanh"))
+    model.add(Dense(1, activation="relu"))
+    model.compile(loss='mse', optimizer='adadelta', metrics=['mse', 'mae'])
+
+    return model
+
+def link_model(dim):
     model = Sequential()
     #model.add(Embedding(len(dim) + 1, 8))
     #model.add(CuDNNLSTM(8, return_sequences=True))

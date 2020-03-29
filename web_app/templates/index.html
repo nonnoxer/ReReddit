@@ -1,15 +1,20 @@
 <!DOCTYPE html>
 <head>
     <meta charset="utf-8">
+    <link rel="stylesheet" type="text/css" href="{{ url_for('static', filename='bootstrap.css') }}">
+    <link rel="stylesheet" type="text/css" href="{{ url_for('static', filename='style.css') }}">
+    <link rel="shortcut icon" href="{{ url_for('static', filename='favicon.ico') }}" type="image/x-icon">
+    <link rel="icon" href="{{ url_for('static', filename='favicon.ico') }}" type="image/x-icon">
 </head>
 <body>
     <h1>January</h1>
-    <p>So named as the mythological god Janus has 2 heads, which look into the past and future</p>
-    <p>To analyse your reddit posts and predict how good it is</p>
-    <form action="/submit" id="submit" method="POST" enctype="multipart/form-data">
-        <input type="text" name="title" placeholder="title"><br>
-        <textarea name="selftext" form="submit"></textarea><br>
-        <input type="file" name="link"><br>
-        <input type="submit">
+    <p>Analyse your potential <a href="https://reddit.com">Reddit</a> submissions using <i>machine learning</i> to predict how good they are!</p>
+
+    <form action="/r" id="submit" method="POST" enctype="multipart/form-data">
+        <input list="subreddits" name="subreddit">
+        <datalist id="subreddits" onchange="load_subreddit_config()">
+        {{ subreddits }}
+        </datalist><br>
+        <input type="submit" value="Go">
     </form>
 </body>

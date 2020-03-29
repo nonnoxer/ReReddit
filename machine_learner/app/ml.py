@@ -1,5 +1,5 @@
 from machine_learner.app.data import process_data
-from machine_learner.app.models import create_model
+from machine_learner.app.models import title_model, selftext_model, link_model
 import matplotlib.pyplot as plt
 
 def generate_model(subreddit):
