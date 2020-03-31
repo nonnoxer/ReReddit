@@ -1,12 +1,14 @@
 import os
 
 from flask import Flask, Markup, redirect, render_template, request, session
+import numpy as np
 from sqlalchemy import Boolean, Column, create_engine, Integer, String
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import sessionmaker
 from tensorflow_core.python.keras.api._v2.keras.models import load_model
 
 from machine_learner.app.scraper import scrape
+from machine_learner.app.data import generate_stuff
 
 # Ensure env variables set up
 print(os.environ["CLIENT_ID"], os.environ["CLIENT_SECRET"], os.environ["DATABASE_URL"])
@@ -69,16 +71,20 @@ def r_subreddit(subreddit):
 def analyse_done():
     subreddit = request.form["subreddit"]
     settings = session.query(Subreddit).filter(Subreddit.name == subreddit).first()
+    data = np.array([])
+    df, title_vectorizer, score_scaler = generate_stuff(subreddit)
     if settings.title:
-        title = request.form["title"]
+        data = np.append(data, title_vectorizer.transform([request.form["title"]]).toarray())
     if settings.selftext:
-        selftext = request.form["selftext"]
+        data = np.append(data, request.form["selftext"])
     if settings.link:
         if request.file["link"] is not None:
             pass
-    model = load_model(os.join("machine_learner", "models", "{subreddit}.h5".format(subreddit=subreddit)))
+    model = load_model(os.path.join("machine_learner", "models", "{subreddit}.h5".format(subreddit=subreddit)))
+    prediction = model.predict(data.reshape(1, -1))
+    prediction = score_scaler.inverse_transform(prediction[0])
     # Predict
-    return render_template("results.html")
+    return render_template("results.html", prediction=prediction)
 
 
 @app.route("/admin")

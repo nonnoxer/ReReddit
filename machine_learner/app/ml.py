@@ -5,7 +5,7 @@ import matplotlib.pyplot as plt
 def generate_model(subreddit):
     (trainX, testX, trainY, testY) = process_data(subreddit)
 
-    model = create_model(trainX, True)
+    model = title_model(trainX)
 
     model_history = model.fit(trainX, trainY, validation_data=(testX, testY),
             epochs=1024, batch_size=64)
