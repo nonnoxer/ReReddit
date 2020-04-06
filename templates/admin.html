@@ -4,7 +4,7 @@
     <link rel="stylesheet" type="text/css" href="{{ url_for('static', filename='bootstrap.css') }}">
     <link rel="stylesheet" type="text/css" href="{{ url_for('static', filename='style.css') }}">
 </head>
-<body>
+<body onload="{{ session.get('message', '') }}">
     <h1>Admin</h1>
     <table class="table">
         <tr>
@@ -12,7 +12,9 @@
             <th>Title</th>
             <th>Selftext</th>
             <th>Link</th>
+            <th>Action</th>
         </tr>
         {{ table }}
     </table>
+    <p><a href="/admin/scrape">Scrape new</a></p>
 </body>

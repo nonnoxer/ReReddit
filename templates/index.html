@@ -6,9 +6,13 @@
     <link rel="shortcut icon" href="{{ url_for('static', filename='favicon.ico') }}" type="image/x-icon">
     <link rel="icon" href="{{ url_for('static', filename='favicon.ico') }}" type="image/x-icon">
 </head>
-<body>
+<body onload="{{ session.get('message', '') }}">
     <h1>January</h1>
     <p>Analyse your potential <a href="https://reddit.com">Reddit</a> submissions using <i>machine learning</i> to predict how good they are!</p>
 
-    {{ prediction }}
+    <form action="/r" id="submit" method="POST">
+        <input list="subreddits" name="subreddit">
+        <datalist id="subreddits">{{ subreddits }}</datalist><br>
+        <input type="submit" value="Go">
+    </form>
 </body>

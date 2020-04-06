@@ -6,15 +6,10 @@
     <link rel="shortcut icon" href="{{ url_for('static', filename='favicon.ico') }}" type="image/x-icon">
     <link rel="icon" href="{{ url_for('static', filename='favicon.ico') }}" type="image/x-icon">
 </head>
-<body>
-    <h1>January</h1>
-    <p>Analyse your potential <a href="https://reddit.com">Reddit</a> submissions using <i>machine learning</i> to predict how good they are!</p>
-
-    <form action="/r" id="submit" method="POST" enctype="multipart/form-data">
-        <input list="subreddits" name="subreddit">
-        <datalist id="subreddits" onchange="load_subreddit_config()">
-        {{ subreddits }}
-        </datalist><br>
-        <input type="submit" value="Go">
+<body onload="{{ session.get('message', '') }}">
+    <h1>Train a model</h1>
+    <form action="/admin/scrape/done" method="POST">
+        <input type="text" name="subreddit" placeholder="Subreddit"><br>
+        <input type="submit" value="Train">
     </form>
 </body>

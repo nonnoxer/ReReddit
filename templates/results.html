@@ -1,0 +1,15 @@
+<!DOCTYPE html>
+<head>
+    <meta charset="utf-8">
+    <link rel="stylesheet" type="text/css" href="{{ url_for('static', filename='bootstrap.css') }}">
+    <link rel="stylesheet" type="text/css" href="{{ url_for('static', filename='style.css') }}">
+    <link rel="shortcut icon" href="{{ url_for('static', filename='favicon.ico') }}" type="image/x-icon">
+    <link rel="icon" href="{{ url_for('static', filename='favicon.ico') }}" type="image/x-icon">
+</head>
+<body onload="{{ session.get('message', '') }}">
+    <h1>January</h1>
+    <p>Analyse your potential <a href="https://reddit.com">Reddit</a> submissions using <i>machine learning</i> to predict how good they are!</p>
+    <p><b>{{ title }}</b></p>
+    <p>{{ selftext }}</p>
+    <p>Your predicted points: {{ prediction }}</p>
+</body>
