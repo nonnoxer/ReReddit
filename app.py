@@ -1,29 +1,26 @@
 import os
 
-from flask import Flask, Markup, redirect, render_template, request, session
-from flask_session import Session
 import numpy as np
-from sqlalchemy import Boolean, Column, create_engine, Integer, String
+from flask import Flask, Markup, redirect, render_template, request
+from sqlalchemy import Boolean, Column, Integer, String, create_engine
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import sessionmaker
 from tensorflow_core.python.keras.api._v2.keras.models import load_model
 
+from machine_learner.app.data import generate_stuff
 from machine_learner.app.ml import generate_model
 from machine_learner.app.scraper import scrape
-from machine_learner.app.data import generate_stuff
 
 # Ensure env variables set up
 print(os.environ["CLIENT_ID"], os.environ["CLIENT_SECRET"], os.environ["DATABASE_URL"])
 
 app = Flask(__name__)
-app.config["SESSION_TYPE"] = "memchached"
-app.config["SECRET_KEY"] = 'secret'
-session = Session(app)
+error = {"error": ""}
 
 engine = create_engine(os.environ["DATABASE_URL"], echo=True)
 Base = declarative_base()
-DB_Session = sessionmaker(bind=engine)
-db_session = DB_Session()
+Session = sessionmaker(bind=engine)
+session = Session()
 
 class Subreddit(Base):
     __tablename__ = 'subreddits'
@@ -43,7 +40,7 @@ def get_model(subreddit):
 # Main page
 @app.route("/")
 def root():
-    settings = db_session.query(Subreddit).order_by(Subreddit.name).all()
+    settings = session.query(Subreddit).order_by(Subreddit.name).all()
     subreddits = ""
     for i in settings:
         subreddits += "<option value='{value}'>".format(value=i.name)
@@ -56,7 +53,7 @@ def submit():
 
 @app.route("/r/<subreddit>")
 def r_subreddit(subreddit):
-    settings = db_session.query(Subreddit).filter(Subreddit.name==subreddit).first()
+    settings = session.query(Subreddit).filter(Subreddit.name==subreddit).first()
     if settings is not None:
         form = ""
         print(settings.title, settings.selftext, settings.link)
@@ -68,13 +65,13 @@ def r_subreddit(subreddit):
             form += "<input type='file' name='link'><br>"
         return render_template("r_subreddit.html", subreddit=subreddit, form=Markup(form))
     else:
-        session["message"] = "alert('Subreddit is unavailable to predict');"
+        error["message"] = "alert('Subreddit is unavailable to predict');"
         return redirect("/")
 
 @app.route("/analyse/done", methods=["POST"])
 def analyse_done():
     subreddit = request.form["subreddit"]
-    settings = db_session.query(Subreddit).filter(Subreddit.name == subreddit).first()
+    settings = session.query(Subreddit).filter(Subreddit.name == subreddit).first()
     data = np.array([])
     df, title_vectorizer, score_scaler = generate_stuff(subreddit)
     title = ""
@@ -96,7 +93,7 @@ def analyse_done():
 
 @app.route("/admin")
 def admin():
-    subreddits = db_session.query(Subreddit).order_by(Subreddit.id).all()
+    subreddits = session.query(Subreddit).order_by(Subreddit.id).all()
     table = ""
     for i in subreddits:
         temp = []
@@ -129,10 +126,10 @@ def admin_edit_done():
         if key in request.form:
             config[key] = True
     print(config)
-    subreddit = db_session.query(Subreddit).filter(Subreddit.name==name).first()
+    subreddit = session.query(Subreddit).filter(Subreddit.name==name).first()
     if subreddit is not None:
         subreddit.title, subreddit.selftext, subreddit.link = config["title"], config["selftext"], config["link"]
-    db_session.commit()
+    session.commit()
     return redirect("/admin")
 
 @app.route("/admin/scrape")
@@ -147,8 +144,8 @@ def admin_scrape_done():
         if key in request.form:
             config[key] = True
     subreddit = Subreddit(name=name, title=config["title"], selftext=config["selftext"], link=config["link"])
-    db_session.add(subreddit)
-    db_session.commit()
+    session.add(subreddit)
+    session.commit()
     scrape(os.environ["CLIENT_ID"], os.environ["CLIENT_SECRET"], "reddit_scraper", request.form["subreddit"])
     return redirect("/admin/scrape")
 
@@ -159,7 +156,7 @@ def admin_train():
 @app.route("/admin/train/done", methods=["POST"])
 def admin_train_done():
     name = request.form["subreddit"]
-    subreddit = db_session.query(Subreddit).filter(name==name).first()
+    subreddit = session.query(Subreddit).filter(name==name).first()
     if subreddit is not None:
         (title, selftext, link) = (subreddit.title, subreddit.selftext, subreddit.link)
     else:

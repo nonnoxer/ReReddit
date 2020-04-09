@@ -6,7 +6,7 @@
     <link rel="shortcut icon" href="{{ url_for('static', filename='favicon.ico') }}" type="image/x-icon">
     <link rel="icon" href="{{ url_for('static', filename='favicon.ico') }}" type="image/x-icon">
 </head>
-<body onload="{{ session.get('message', '') }}">
+<body>
     <h1>Scrape a subreddit</h1>
     <table class="table"><form action="/admin/scrape/done" method="POST">
         <tr>
