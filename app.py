@@ -8,7 +8,7 @@ from sqlalchemy.orm import sessionmaker
 from tensorflow_core.python.keras.api._v2.keras.models import load_model
 
 from machine_learner.app.data import generate_stuff
-from machine_learner.app.ml import generate_model
+from machine_learner.app.train import train_model
 from machine_learner.app.scraper import scrape
 
 # Ensure env variables set up
@@ -161,7 +161,7 @@ def admin_train_done():
         (title, selftext, link) = (subreddit.title, subreddit.selftext, subreddit.link)
     else:
         return redirect("/admin/scrape")
-    generate_model(subreddit).save("machine_learner/models/{subreddit}.h5".format(subreddit=subreddit))
+    train_model(subreddit).save("machine_learner/models/{subreddit}.h5".format(subreddit=subreddit))
     return redirect("/admin/train")
 
 if __name__ == "__main__":
