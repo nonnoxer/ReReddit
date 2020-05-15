@@ -5,10 +5,10 @@ from flask import Flask, Markup, redirect, render_template, request
 from sqlalchemy import Boolean, Column, Integer, String, create_engine
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import sessionmaker
-from tensorflow_core.python.keras.api._v2.keras.models import load_model
+from keras.models import load_model
 
-from machine_learner.app.data import generate_stuff
 from machine_learner.app.train import train_model
+from machine_learner.app.data import generate_preprocessing
 from machine_learner.app.scraper import scrape
 
 # Ensure env variables set up
@@ -26,7 +26,7 @@ class Subreddit(Base):
     __tablename__ = 'subreddits'
 
     id = Column(Integer, primary_key=True, autoincrement=True)
-    name = Column(String(20))
+    name = Column(String(20), unique=True)
     title = Column(Boolean)
     selftext = Column(Boolean)
     link = Column(Boolean)
@@ -72,24 +72,23 @@ def r_subreddit(subreddit):
 def analyse_done():
     subreddit = request.form["subreddit"]
     settings = session.query(Subreddit).filter(Subreddit.name == subreddit).first()
-    data = np.array([])
-    df, title_vectorizer, score_scaler = generate_stuff(subreddit)
+    x = []
+    preprocessing = generate_preprocessing(subreddit, settings.title, settings.selftext, settings.link)
     title = ""
     selftext = ""
     if settings.title:
         title = request.form["title"]
-        data = np.append(data, title_vectorizer.transform([title]).toarray())
+        x.append(preprocessing["title_tokenizer"].transform([title]).toarray())
     if settings.selftext:
         selftext = request.form["selftext"]
-        data = np.append(data, selftext)
+        x.append(preprocessing["selftext_tokenizer"].transform([selftext]).toarray())
     if settings.link:
         if request.file["link"] is not None:
             pass
     model = load_model(os.path.join("machine_learner", "models", "{subreddit}.h5".format(subreddit=subreddit)))
-    prediction = model.predict(data.reshape(1, -1))
-    prediction = int(score_scaler.inverse_transform(prediction[0])[0])
+    prediction = model.predict(x.reshape(1, -1))
+    prediction = int(preprocessing["score_scaler"].inverse_transform(prediction[0])[0])
     return render_template("results.html", title=title, selftext=selftext, prediction=prediction)
-
 
 @app.route("/admin")
 def admin():
@@ -109,12 +108,21 @@ def admin():
             <td><input type="checkbox" name="title" value="title" {title}></td>
             <td><input type="checkbox" name="selftext" value="selftext" {selftext}></td>
             <td><input type="checkbox" name="link" value="link" {link}></td>
-            <td><input type="submit" value="Update">
-                <form action="admin/delete/done" method="POST">
+            <td><input type="submit" value="Update"></form>
+                <form action="/admin/delete/done" method="POST">
                     <input type="text" name="title" value="{name}" readonly hidden>
                     <input type="submit" value="Delete" style="color: red">
                 </form></td>
-        </form></tr>""".format(name=i.name, title=temp[0], selftext=temp[1], link=temp[2])
+            <td>
+                <form action="/admin/scrape" method="POST">
+                    <input type="text" name="subreddit" value="{name}" readonly hidden>
+                    <input type="submit" value="Scrape">
+                </form>
+                <form action="/admin/train" method="POST">
+                    <input type="text" name="subreddit" value="{name}" readonly hidden>
+                    <input type="submit" value="Train">
+            </td>
+        </tr>""".format(name=i.name, title=temp[0], selftext=temp[1], link=temp[2])
     return render_template("admin.html", table=Markup(table))
 
 @app.route("/admin/edit/done", methods=["POST"])
@@ -132,12 +140,12 @@ def admin_edit_done():
     session.commit()
     return redirect("/admin")
 
-@app.route("/admin/scrape")
-def admin_scrape():
-    return render_template("admin_scrape.html")
+@app.route("/admin/new")
+def admin_new():
+    return render_template("admin_new.html")
 
-@app.route("/admin/scrape/done", methods=["POST"])
-def admin_scrape_done():
+@app.route("/admin/new/done", methods=["POST"])
+def admin_new_done():
     name = request.form["subreddit"]
     config = {"title": False, "selftext": False, "link": False}
     for key in config:
@@ -146,8 +154,18 @@ def admin_scrape_done():
     subreddit = Subreddit(name=name, title=config["title"], selftext=config["selftext"], link=config["link"])
     session.add(subreddit)
     session.commit()
-    scrape(os.environ["CLIENT_ID"], os.environ["CLIENT_SECRET"], "reddit_scraper", request.form["subreddit"])
-    return redirect("/admin/scrape")
+    return redirect("/admin")
+
+@app.route("/admin/scrape", methods=["POST"])
+def admin_scrape():
+    subreddit = request.form["subreddit"]
+    return render_template("admin_scrape.html", subreddit=subreddit)
+
+@app.route("/admin/scrape/done", methods=["POST"])
+def admin_scrape_done():
+    name = request.form["subreddit"]
+    scrape(os.environ["CLIENT_ID"], os.environ["CLIENT_SECRET"], "reddit_scraper", name)
+    return redirect("/admin")
 
 @app.route("/admin/train")
 def admin_train():
@@ -156,12 +174,14 @@ def admin_train():
 @app.route("/admin/train/done", methods=["POST"])
 def admin_train_done():
     name = request.form["subreddit"]
+    epochs = request.form["epochs"]
+    batch_size = request.form["batch_size"]
     subreddit = session.query(Subreddit).filter(name==name).first()
     if subreddit is not None:
-        (title, selftext, link) = (subreddit.title, subreddit.selftext, subreddit.link)
+        title, selftext, link = subreddit.title, subreddit.selftext, subreddit.link
     else:
         return redirect("/admin/scrape")
-    train_model(subreddit).save("machine_learner/models/{subreddit}.h5".format(subreddit=subreddit))
+    train_model(subreddit, title, selftext, link, epochs, batch_size)
     return redirect("/admin/train")
 
 if __name__ == "__main__":

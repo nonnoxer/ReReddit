@@ -27,7 +27,7 @@ def scrape(client_id, client_secret, user_agent, subreddit):
         user_agent=user_agent,
     )
 
-    file_sr = open(os.path.join( "machine_learner", "datasets", "{subreddit}.csv".format(subreddit=subreddit)), "a+")
+    file_sr = open(os.path.join("machine_learner", "datasets", "{subreddit}.csv".format(subreddit=subreddit)), "a+")
     sr = reddit.subreddit(subreddit)
     cats = [sr.top(limit=10000), sr.hot(limit=1000), sr.random_rising(limit=1000), sr.random_rising(limit=1000), []]
     for i in range(1000):

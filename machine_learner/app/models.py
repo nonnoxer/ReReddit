@@ -1,30 +1,33 @@
 #from tensorflow_core._api.v2.compat.v1.keras.layers import CuDNNLSTM
 from keras.engine.input_layer import Input
-from keras.layers import (LSTM, Concatenate, Conv2D, Dense, Dropout, Embedding, Flatten,
-                          GlobalAveragePooling1D, MaxPooling2D, concatenate)
+from keras.layers import (
+    LSTM, Concatenate, Conv2D, Dense, Dropout, Embedding, Flatten,
+    MaxPooling2D)
 from keras.models import Model, Sequential
 
 
-def generate_model(title, selftext, link, title_words=None, selftext_words=None):
+def generate_model(title, selftext, link):
     inputs, models = [], []
     #title model
     if title:
-        t_in = Input(shape=(title_words,))
-        t_embed = Embedding(title_words, 16)(t_in)
+        t_in = Input(shape=(1024,))
+        t_embed = Embedding(1024, 16)(t_in)
         t_dense1 = Dense(16, activation="relu")(t_embed)
         t_dense2 = Dense(16, activation="relu")(t_dense1)
         t_dense3 = Dense(16, activation="relu")(t_dense2)
         t_dense4 = Dense(1, activation="relu")(t_dense3)
+        t_flat = Flatten()(t_dense4)
         inputs.append(t_in)
-        models.append(t_dense4)
+        models.append(t_flat)
     #selftext model
     if selftext:
-        s_in = Input(shape=(selftext_words,))
-        s_embed = Embedding(selftext_words, 16)(s_in)
-        s_lstm = LSTM(16)(s_embed)
-        s_dense = Dense(1, activation="relu")(s_lstm)
+        s_in = Input(shape=(2048,))
+        s_embed = Embedding(2048, 1)(s_in)
+        s_lstm = LSTM(1)(s_embed)
+        s_dense1 = Dense(16, activation="relu")(s_lstm)
+        s_dense2 = Dense(1, activation="relu")(s_dense1)
         inputs.append(s_in)
-        models.append(s_dense)
+        models.append(s_dense2)
     #link model
     if link:
         l_in = Input(shape=(256, 256, 3))
@@ -34,10 +37,9 @@ def generate_model(title, selftext, link, title_words=None, selftext_words=None)
         l_pool2 = MaxPooling2D(pool_size=(2, 2))(l_conv2)  
         l_flat1 = Flatten()(l_pool2)
         l_dense1 = Dense(16, activation="relu")(l_flat1)
-        l_dense2 = Dense(1, activation="sigmoid")(l_dense1)
-        l_flat2 = Flatten()(l_dense2)
+        l_dense2 = Dense(1, activation="relu")(l_dense1)
         inputs.append(l_in)
-        models.append(l_flat2)
+        models.append(l_dense2)
     if len(models) > 1:
         merge = Concatenate()(models)
     else:

@@ -1,5 +1,7 @@
 .vscode
 temp/*
+machine_learner/datasets/*
+machine_learner/models/*
 
 # Logs
 logs

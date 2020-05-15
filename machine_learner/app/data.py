@@ -22,9 +22,9 @@ def process_data(subreddit, title, selftext, link):
     filtered_df = filter_df(df, title, selftext, link)
     preprocessing = preprocess(filtered_df, title, selftext)
     (train, test) = train_test_split(filtered_df, test_size=0.25, random_state=42)
-    trainX, trainY = compile_data(train, title, selftext, link, preprocessing), train["score"]
-    testX, testY = compile_data(test, title, selftext, link, preprocessing), test["score"]
-    return (trainX, trainY, testX, testY), {"title_words": preprocessing.get("title_words"), "selftext_words": preprocessing.get("selftext_words")}
+    trainX, trainY = compile_data(train, title, selftext, link, preprocessing)
+    testX, testY = compile_data(test, title, selftext, link, preprocessing)
+    return (trainX, trainY, testX, testY)#, {"title_words": preprocessing.get("title_words"), "selftext_words": preprocessing.get("selftext_words")}
 
 def filter_df(df, title, selftext, link):
     cols = ["title", "score", "id", "subreddit",
@@ -56,14 +56,29 @@ def preprocess(df, title, selftext):
     preprocessing["score_scaler"] = process_score(np.array(df["score"]))
     return preprocessing
 
+def process_title(title_list):
+    title_tokenizer = Tokenizer(num_words=1024)
+    title_tokenizer.fit_on_texts(title_list)
+    return title_tokenizer
+
+def process_selftext(selftext_list):
+    selftext_tokenizer = Tokenizer(num_words=2048)
+    selftext_tokenizer.fit_on_texts(selftext_list)
+    return selftext_tokenizer
+
+def process_score(score_list):
+    score_scaler = StandardScaler()
+    score_scaler = score_scaler.fit(score_list.reshape(-1, 1))
+    return score_scaler
+
 def compile_data(df, title, selftext, link, preprocessing):
-    data = []
+    x = []
     words = {}
     if title:
-        data.append(np.asarray(preprocessing["title_tokenizer"].texts_to_matrix(df["title"])))
+        x.append(np.asarray(preprocessing["title_tokenizer"].texts_to_matrix(df["title"])))
         words["title_words"] = len(preprocessing["title_tokenizer"].word_index) + 1
     if selftext:
-        data.append(np.asarray(preprocessing["selftext_tokenizer"].texts_to_matrix(df["selftext"])))
+        x.append(np.asarray(preprocessing["selftext_tokenizer"].texts_to_matrix(df["selftext"])))
         words["selftext_words"] = len(preprocessing["selftext_tokenizer"].word_index) + 1
     if link:
         link_arr = []
@@ -71,19 +86,10 @@ def compile_data(df, title, selftext, link, preprocessing):
         for i in link_np:
             link_arr.append(i)
         link_arr = np.asarray(link_arr)
-        data.append(link_arr)
-        print(len(data[1]))
-    return data
-
-def process_title(title_list):
-    title_tokenizer = Tokenizer()
-    title_tokenizer.fit_on_texts(title_list)
-    return title_tokenizer
-
-def process_selftext(selftext_list):
-    selftext_tokenizer = Tokenizer()
-    selftext_tokenizer.fit_on_texts(selftext_list)
-    return selftext_tokenizer
+        link_arr /= 255
+        x.append(link_arr)
+    y = preprocessing["score_scaler"].transform(df["score"].to_numpy().reshape(-1, 1))
+    return x, y
 
 def process_link(link_list):
     counter = 0
@@ -106,13 +112,15 @@ def process_link(link_list):
         os.remove(os.path.join("temp", i))
     return res_img
 
-def process_score(score_list):
-    score_scaler = StandardScaler()
-    score_scaler = score_scaler.fit_transform(score_list.reshape(-1, 1))
-    scaled_scores = []
-    for i in score_scaler:
-        scaled_scores.append(i[0])
-    return scaled_scores
+def generate_preprocessing(subreddit, title, selftext, link):
+    cols = ["title", "score", "id", "subreddit",
+            "link", "num_comments", "selftext", "created"]
+    input_path = os.path.join(
+        "machine_learner", "datasets", "{subreddit}.csv".format(subreddit=subreddit))
+    df = pd.read_csv(input_path, sep=";;;;", header=None, names=cols, engine="python")
+    filtered_df = filter_df(df, title, selftext, link)
+    preprocessing = preprocess(filtered_df, title, selftext)
+    return preprocessing
 
 # "Human" sorting by Ned Batchelder https://nedbatchelder.com/blog/200712/human_sorting.html
 def tryint(s):

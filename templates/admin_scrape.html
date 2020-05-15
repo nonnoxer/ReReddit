@@ -5,23 +5,12 @@
     <link rel="stylesheet" type="text/css" href="{{ url_for('static', filename='style.css') }}">
     <link rel="shortcut icon" href="{{ url_for('static', filename='favicon.ico') }}" type="image/x-icon">
     <link rel="icon" href="{{ url_for('static', filename='favicon.ico') }}" type="image/x-icon">
+    <title>Scrape Subreddit</title>
 </head>
 <body>
-    <h1>Scrape a subreddit</h1>
-    <table class="table"><form action="/admin/scrape/done" method="POST">
-        <tr>
-            <th>Name</th>
-            <th>Title</th>
-            <th>Selftext</th>
-            <th>Link</th>
-            <th>Action</th>
-        </tr>
-        <tr>
-            <td><input type="text" name="subreddit" placeholder="Subreddit"></td>
-            <td><input type="checkbox" name="title"></td>
-            <td><input type="checkbox" name="selftext"></td>
-            <td><input type="checkbox" name="link"></td>
-            <td><input type="submit" value="Scrape"></td>
-        </tr>
-    </form></table>
+    <h1>Scrape r/{{subreddit}}</h1>
+    <form action="/admin/scrape/done" id="form" method="POST">
+        <input type="text" name="subreddit" value="{{subreddit}}" readonly><br>
+        <input type="submit" value="Scrape">
+    </form>
 </body>
