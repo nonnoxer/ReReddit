@@ -1,15 +1,17 @@
 import os
 
+import cv2
 import numpy as np
 from flask import Flask, Markup, redirect, render_template, request
+from keras.models import load_model
 from sqlalchemy import Boolean, Column, Integer, String, create_engine
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import sessionmaker
-from keras.models import load_model
+from werkzeug.utils import secure_filename
 
-from machine_learner.app.train import train_model
-from machine_learner.app.data import generate_preprocessing
+from machine_learner.app.data import generate_preprocessing, process_link
 from machine_learner.app.scraper import scrape
+from machine_learner.app.train import train_model
 
 # Ensure env variables set up
 print(os.environ["CLIENT_ID"], os.environ["CLIENT_SECRET"], os.environ["DATABASE_URL"])
@@ -62,7 +64,7 @@ def r_subreddit(subreddit):
         if settings.selftext:
             form += "<textarea name='selftext' form='form' placeholder='Text'></textarea><br>"
         if settings.link:
-            form += "<input type='file' name='link'><br>"
+            form += "<input type='file' name='link' accept='image/x-png, image/jpeg'><br>"
         return render_template("r_subreddit.html", subreddit=subreddit, form=Markup(form))
     else:
         error["message"] = "alert('Subreddit is unavailable to predict');"
@@ -76,19 +78,27 @@ def analyse_done():
     preprocessing = generate_preprocessing(subreddit, settings.title, settings.selftext, settings.link)
     title = ""
     selftext = ""
+    link_path = ""
     if settings.title:
         title = request.form["title"]
-        x.append(np.asarray(preprocessing["title_tokenizer"].texts_to_matrix([title])))
+        x.append(np.asarray(preprocessing["title_tokenizer"].texts_to_matrix(title)))
     if settings.selftext:
         selftext = request.form["selftext"]
-        x.append(np.asarray(preprocessing["selftext_tokenizer"].texts_to_matrix([selftext])))
+        x.append(np.asarray(preprocessing["selftext_tokenizer"].texts_to_matrix(selftext)))
     if settings.link:
-        if request.file["link"] is not None:
-            pass
-    model = load_model(os.path.join("machine_learner", "models", "{subreddit}.h5".format(subreddit=subreddit)))
+        if "link" in request.files:
+            img = request.files["link"]
+            link_path = os.path.join("temp", secure_filename(img.filename))
+            read_img = cv2.imread(link_path)
+            res = cv2.resize(read_img, (256, 256))
+            link = np.asarray(res).astype("float")
+            link /= 255
+            x.append(link)
+    print(x[0].shape, x[0])
+    model = load_model(os.path.join("machine_learner", "models", f"{subreddit}.h5"))
     prediction = model.predict(np.array(x).reshape(1, -1))
     prediction = int(preprocessing["score_scaler"].inverse_transform(prediction[0])[0])
-    return render_template("results.html", title=title, selftext=selftext, prediction=prediction)
+    return render_template("results.html", title=title, selftext=selftext, link=link_path, prediction=prediction)
 
 @app.route("/admin")
 def admin():

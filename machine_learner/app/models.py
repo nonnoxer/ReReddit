@@ -50,16 +50,3 @@ def generate_model(title, selftext, link):
     print(model.summary())
     model.compile(loss='mse', optimizer='adadelta', metrics=['mse', 'mae'])
     return model
-def link_model():
-    l_in = Input(shape=(256, 256, 3))
-    l_1 = Conv2D(32, (3, 3), input_shape=(3, 256, 256), activation="relu")(l_in)
-    l_2 = MaxPooling2D(pool_size=(2, 2))(l_1)
-    l_3 = Conv2D(32, (3, 3), activation="relu")(l_2)
-    l_4 = MaxPooling2D(pool_size=(2, 2))(l_3)
-    l_5 = Flatten()(l_4)
-    l_6 = Dense(16, activation="relu")(l_5)
-    l_7 = Dense(1, activation="sigmoid")(l_6)
-    model = Model(inputs=l_in, outputs=l_7)
-    model.compile(loss='mse', optimizer='adadelta', metrics=['mse', 'mae'])
-
-    return model
