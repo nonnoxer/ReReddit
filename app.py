@@ -78,15 +78,15 @@ def analyse_done():
     selftext = ""
     if settings.title:
         title = request.form["title"]
-        x.append(preprocessing["title_tokenizer"].transform([title]).toarray())
+        x.append(np.asarray(preprocessing["title_tokenizer"].texts_to_matrix([title])))
     if settings.selftext:
         selftext = request.form["selftext"]
-        x.append(preprocessing["selftext_tokenizer"].transform([selftext]).toarray())
+        x.append(np.asarray(preprocessing["selftext_tokenizer"].texts_to_matrix([selftext])))
     if settings.link:
         if request.file["link"] is not None:
             pass
     model = load_model(os.path.join("machine_learner", "models", "{subreddit}.h5".format(subreddit=subreddit)))
-    prediction = model.predict(x.reshape(1, -1))
+    prediction = model.predict(np.array(x).reshape(1, -1))
     prediction = int(preprocessing["score_scaler"].inverse_transform(prediction[0])[0])
     return render_template("results.html", title=title, selftext=selftext, prediction=prediction)
 
@@ -167,9 +167,10 @@ def admin_scrape_done():
     scrape(os.environ["CLIENT_ID"], os.environ["CLIENT_SECRET"], "reddit_scraper", name)
     return redirect("/admin")
 
-@app.route("/admin/train")
+@app.route("/admin/train", methods=["POST"])
 def admin_train():
-    return render_template("admin_train.html")
+    subreddit = request.form["subreddit"]
+    return render_template("admin_train.html", subreddit=subreddit)
 
 @app.route("/admin/train/done", methods=["POST"])
 def admin_train_done():
@@ -180,9 +181,9 @@ def admin_train_done():
     if subreddit is not None:
         title, selftext, link = subreddit.title, subreddit.selftext, subreddit.link
     else:
-        return redirect("/admin/scrape")
-    train_model(subreddit, title, selftext, link, epochs, batch_size)
-    return redirect("/admin/train")
+        return redirect("/admin/new")
+    train_model(name, title, selftext, link, epochs, batch_size)
+    return redirect("/admin")
 
 if __name__ == "__main__":
     app.run(debug=True)
