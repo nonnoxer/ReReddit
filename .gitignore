@@ -1,5 +1,5 @@
 .vscode
-temp/*
+link_datasets/*
 machine_learner/datasets/*
 machine_learner/models/*
 
