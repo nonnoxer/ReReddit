@@ -21,7 +21,7 @@ def generate_model(title, selftext, link):
         models.append(t_flat)
     #selftext model
     if selftext:
-        s_in = Input(shape=(2048,))
+        s_in = Input(shape=(1024,))
         s_embed = Embedding(2048, 1)(s_in)
         s_lstm = LSTM(1)(s_embed)
         s_dense1 = Dense(16, activation="relu")(s_lstm)
@@ -30,7 +30,7 @@ def generate_model(title, selftext, link):
         models.append(s_dense2)
     #link model
     if link:
-        l_in = Input(shape=(256, 256, 3))
+        l_in = Input(shape=(64, 64, 3))
         l_conv1 = Conv2D(32, (3, 3), input_shape=(3, 256, 256), activation="relu")(l_in)
         l_pool1 = MaxPooling2D(pool_size=(2, 2))(l_conv1)
         l_conv2 = Conv2D(32, (3, 3), activation="relu")(l_pool1)

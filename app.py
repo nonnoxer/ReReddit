@@ -3,13 +3,14 @@ import os
 import cv2
 import numpy as np
 from flask import Flask, Markup, redirect, render_template, request
+from keras import backend
 from keras.models import load_model
 from sqlalchemy import Boolean, Column, Integer, String, create_engine
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import sessionmaker
 from werkzeug.utils import secure_filename
 
-from machine_learner.app.data import generate_preprocessing, process_link
+from machine_learner.app.data import generate_preprocessing, process_link, download_link
 from machine_learner.app.scraper import scrape
 from machine_learner.app.train import train_model
 
@@ -36,7 +37,7 @@ class Subreddit(Base):
 #Base.metadata.create_all(engine)
 
 def get_model(subreddit):    
-    model = load_model(os.path.join("machine_learner", "models", "{subreddit}.h5".format(subreddit=subreddit)))
+    model = load_model(os.path.join("machine_learner", "models", f"{subreddit}.h5"))
     return model
 
 # Main page
@@ -45,13 +46,13 @@ def root():
     settings = session.query(Subreddit).order_by(Subreddit.name).all()
     subreddits = ""
     for i in settings:
-        subreddits += "<option value='{value}'>".format(value=i.name)
+        subreddits += f"<option value='{i.name}'>"
     return render_template("index.html", subreddits=Markup(subreddits))
 
 @app.route("/r", methods=["POST"])
 def submit():
     subreddit = request.form["subreddit"]
-    return redirect("/r/{subreddit}".format(subreddit=subreddit))
+    return redirect(f"/r/{subreddit}")
 
 @app.route("/r/<subreddit>")
 def r_subreddit(subreddit):
@@ -81,22 +82,23 @@ def analyse_done():
     link_path = ""
     if settings.title:
         title = request.form["title"]
-        x.append(np.asarray(preprocessing["title_tokenizer"].texts_to_matrix(title)))
+        x.append(preprocessing["title_vectorizer"].transform([title]).toarray())
     if settings.selftext:
         selftext = request.form["selftext"]
-        x.append(np.asarray(preprocessing["selftext_tokenizer"].texts_to_matrix(selftext)))
+        x.append(preprocessing["selftext_vectorizer"].transform([selftext]).toarray())
     if settings.link:
         if "link" in request.files:
             img = request.files["link"]
             link_path = os.path.join("temp", secure_filename(img.filename))
+            img.save(link_path)
             read_img = cv2.imread(link_path)
             res = cv2.resize(read_img, (256, 256))
             link = np.asarray(res).astype("float")
             link /= 255
             x.append(link)
-    print(x[0].shape, x[0])
     model = load_model(os.path.join("machine_learner", "models", f"{subreddit}.h5"))
-    prediction = model.predict(np.array(x).reshape(1, -1))
+    prediction = model.predict(x)
+    backend.clear_session()
     prediction = int(preprocessing["score_scaler"].inverse_transform(prediction[0])[0])
     return render_template("results.html", title=title, selftext=selftext, link=link_path, prediction=prediction)
 
@@ -127,12 +129,21 @@ def admin():
                 <form action="/admin/scrape" method="POST">
                     <input type="text" name="subreddit" value="{name}" readonly hidden>
                     <input type="submit" value="Scrape">
+                </form>""".format(name=i.name, title=temp[0], selftext=temp[1], link=temp[2])
+        if temp[2]:
+            table += f"""
+                <form action="/admin/download" method="POST">
+                    <input type="text" name="subreddit" value="{i.name}" readonly hidden>
+                    <input type="submit" value="Download">
                 </form>
+            """
+        table += f"""
                 <form action="/admin/train" method="POST">
-                    <input type="text" name="subreddit" value="{name}" readonly hidden>
+                    <input type="text" name="subreddit" value="{i.name}" readonly hidden>
                     <input type="submit" value="Train">
+                </form>
             </td>
-        </tr>""".format(name=i.name, title=temp[0], selftext=temp[1], link=temp[2])
+        </tr>"""
     return render_template("admin.html", table=Markup(table))
 
 @app.route("/admin/edit/done", methods=["POST"])
@@ -177,6 +188,18 @@ def admin_scrape_done():
     scrape(os.environ["CLIENT_ID"], os.environ["CLIENT_SECRET"], "reddit_scraper", name)
     return redirect("/admin")
 
+@app.route("/admin/download", methods=["POST"])
+def admin_download():
+    subreddit = request.form["subreddit"]
+    return render_template("admin_download.html", subreddit=subreddit)
+
+@app.route("/admin/download/done", methods=["POST"])
+def admin_download_done():
+    name = request.form["subreddit"]
+    subreddit = session.query(Subreddit).filter(Subreddit.name==name).first()
+    download_link(name, subreddit.title, subreddit.selftext, subreddit.link)
+    return redirect("/admin")
+
 @app.route("/admin/train", methods=["POST"])
 def admin_train():
     subreddit = request.form["subreddit"]
@@ -185,14 +208,16 @@ def admin_train():
 @app.route("/admin/train/done", methods=["POST"])
 def admin_train_done():
     name = request.form["subreddit"]
-    epochs = request.form["epochs"]
-    batch_size = request.form["batch_size"]
-    subreddit = session.query(Subreddit).filter(name==name).first()
+    epochs = int(request.form["epochs"])
+    batch_size = int(request.form["batch_size"])
+    subreddit = session.query(Subreddit).filter(Subreddit.name==name).first()
     if subreddit is not None:
         title, selftext, link = subreddit.title, subreddit.selftext, subreddit.link
     else:
         return redirect("/admin/new")
+    print(title, selftext, link)
     train_model(name, title, selftext, link, epochs, batch_size)
+    backend.clear_session()
     return redirect("/admin")
 
 if __name__ == "__main__":

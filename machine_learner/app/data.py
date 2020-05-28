@@ -9,26 +9,24 @@ import requests
 from sklearn.feature_extraction.text import CountVectorizer
 from sklearn.model_selection import train_test_split
 from sklearn.preprocessing import StandardScaler
-from keras.preprocessing.text import Tokenizer
-from keras.preprocessing.sequence import pad_sequences
 
 
 def process_data(subreddit, title, selftext, link):
-    cols = ["title", "score", "id", "subreddit",
-            "link", "num_comments", "selftext", "created"]
-    input_path = os.path.join(
-        "machine_learner", "datasets", "{subreddit}.csv".format(subreddit=subreddit))
-    df = pd.read_csv(input_path, sep=";;;;", header=None, names=cols, engine="python")
-    filtered_df = filter_df(df, title, selftext, link)
+    filtered_df = filter_df(subreddit, title, selftext, link)
     preprocessing = preprocess(filtered_df, title, selftext)
     (train, test) = train_test_split(filtered_df, test_size=0.25, random_state=42)
-    trainX, trainY = compile_data(train, title, selftext, link, preprocessing)
-    testX, testY = compile_data(test, title, selftext, link, preprocessing)
+    trainX, trainY = compile_data(subreddit, train, title, selftext, link, preprocessing)
+    testX, testY = compile_data(subreddit, test, title, selftext, link, preprocessing)
     return (trainX, trainY, testX, testY)#, {"title_words": preprocessing.get("title_words"), "selftext_words": preprocessing.get("selftext_words")}
 
-def filter_df(df, title, selftext, link):
+def filter_df(subreddit, title, selftext, link):
     cols = ["title", "score", "id", "subreddit",
             "link", "num_comments", "selftext", "created"]
+    if link:
+        cols.append("ref_no")
+        counter = 0
+    input_path = os.path.join("machine_learner", "datasets", f"{subreddit}.csv")
+    df = pd.read_csv(input_path, sep=";;;;", header=None, names=cols, engine="python")
     filtered = []
     for index, row in df.iterrows():
         not_bad_data = not \
@@ -40,6 +38,13 @@ def filter_df(df, title, selftext, link):
                 (row["link"].find(".jpg") == -1 and \
                 row["link"].find(".png") == -1))))
         if not_bad_data:
+            if link:
+                if row["link"].find(".jpg") != -1:
+                    ext = ".jpg"
+                elif row["link"].find(".png") != -1:
+                    ext = ".png"
+                row["ref_no"] = str(counter) + ext
+                counter += 1
             filtered.append(row)
     filtered_df = pd.DataFrame(data=filtered)
     return filtered_df
@@ -47,78 +52,75 @@ def filter_df(df, title, selftext, link):
 def preprocess(df, title, selftext):
     preprocessing = {}
     if title:
-        preprocessing["title_tokenizer"] = process_title(np.array(df["title"]))
-        preprocessing["title_words"] = len(preprocessing["title_tokenizer"].word_index) + 1
+        preprocessing["title_vectorizer"] = process_title(np.array(df["title"]))
     if selftext:
-        preprocessing["selftext_tokenizer"] = process_selftext(np.array(df["selftext"]))
-        preprocessing["selftext_words"] = len(preprocessing["selftext_tokenizer"].word_index) + 1
+        preprocessing["selftext_vectorizer"] = process_selftext(np.array(df["selftext"]))
     # Link processing to be done separately
     preprocessing["score_scaler"] = process_score(np.array(df["score"]))
     return preprocessing
 
+def compile_data(subreddit, df, title, selftext, link, preprocessing):
+    x = []
+    words = {}
+    if title:
+        x.append(preprocessing["title_vectorizer"].transform(df["title"]).toarray())
+    if selftext:
+        x.append(preprocessing["selftext_vectorizer"].transform(df["selftext"]).toarray())
+    if link:
+        link_arr = []
+        link_np = process_link(subreddit, df["ref_no"]) # df["link"].to_numpy()
+        for i in link_np:
+            link_arr.append(i)
+        link_arr = np.array(link_arr, dtype=float)
+        link_arr /= 255
+        x.append(link_arr)
+    y = preprocessing["score_scaler"].transform(df["score"].to_numpy().reshape(-1, 1))
+    return x, y
+
 def process_title(title_list):
-    title_tokenizer = Tokenizer(num_words=1024)
-    title_tokenizer.fit_on_texts(title_list)
-    return title_tokenizer
+    title_vectorizer = CountVectorizer(max_features=1024)
+    title_vectorizer.fit(title_list)
+    return title_vectorizer
 
 def process_selftext(selftext_list):
-    selftext_tokenizer = Tokenizer(num_words=2048)
-    selftext_tokenizer.fit_on_texts(selftext_list)
-    return selftext_tokenizer
+    selftext_vectorizer = CountVectorizer(max_features=1024)
+    selftext_vectorizer.fit(selftext_list)
+    return selftext_vectorizer
 
 def process_score(score_list):
     score_scaler = StandardScaler()
     score_scaler = score_scaler.fit(score_list.reshape(-1, 1))
     return score_scaler
 
-def compile_data(df, title, selftext, link, preprocessing):
-    x = []
-    words = {}
-    if title:
-        x.append(np.asarray(preprocessing["title_tokenizer"].texts_to_matrix(df["title"])))
-        words["title_words"] = len(preprocessing["title_tokenizer"].word_index) + 1
-    if selftext:
-        x.append(np.asarray(preprocessing["selftext_tokenizer"].texts_to_matrix(df["selftext"])))
-        words["selftext_words"] = len(preprocessing["selftext_tokenizer"].word_index) + 1
-    if link:
-        link_arr = []
-        link_np = process_link(df["link"].to_numpy())
-        for i in link_np:
-            link_arr.append(i)
-        link_arr = np.asarray(link_arr)
-        link_arr /= 255
-        x.append(link_arr)
-    y = preprocessing["score_scaler"].transform(df["score"].to_numpy().reshape(-1, 1))
-    return x, y
+def process_link(subreddit, ref_nos):
+    res_img = []
+    for i in ref_nos:
+        img = cv2.imread(os.path.join("machine_learner", "link_datasets", subreddit, i))
+        try:
+            res = cv2.resize(img, (64, 64))
+        except:
+            res = [[[0, 0, 0]] * 64] * 64 #in the rare case a gif slips through, just mark it with a black picture
+        res_img.append(res)
+    return res_img
 
-def process_link(link_list):
+def download_link(subreddit, title, selftext, link):
+    assert link
+    if not os.path.exists(os.path.join("machine_learner", "link_datasets", subreddit)):
+        os.makedirs(os.path.join("machine_learner", "link_datasets", subreddit))
+    filtered_df = filter_df(subreddit, title, selftext, link)
     counter = 0
-    for i in link_list:
+    for i in filtered_df["link"]:
         if i.find("jpg") != -1:
             ext = ".jpg"
         elif i.find("png") != -1:
             ext = ".png"
-        f = open(os.path.join("temp", str(counter) + ext), "wb")
+        f = open(os.path.join("machine_learner", "link_datasets", subreddit, str(counter) + ext), "wb")
         f.write(requests.get(i).content)
         f.close()
         counter += 1
-    files = os.listdir("temp")
-    sort_nicely(files)
-    res_img = []
-    for i in files:
-        img = cv2.imread(os.path.join("temp", i))
-        res = cv2.resize(img, (256, 256))
-        res_img.append(res)
-        os.remove(os.path.join("temp", i))
-    return res_img
 
 def generate_preprocessing(subreddit, title, selftext, link):
-    cols = ["title", "score", "id", "subreddit",
-            "link", "num_comments", "selftext", "created"]
-    input_path = os.path.join(
-        "machine_learner", "datasets", "{subreddit}.csv".format(subreddit=subreddit))
-    df = pd.read_csv(input_path, sep=";;;;", header=None, names=cols, engine="python")
-    filtered_df = filter_df(df, title, selftext, link)
+    filtered_df = filter_df(subreddit, title, selftext, link)
     preprocessing = preprocess(filtered_df, title, selftext)
     return preprocessing
 

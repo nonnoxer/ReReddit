@@ -5,18 +5,11 @@ import praw
 
 def write(file_sr, post):
     try:
-        file_sr.write(
-                "{title};;;;{score};;;;{id};;;;{subreddit};;;;{url};;;;{num_comments};;;;{selftext};;;;{created}\r".format(
-                    title=post.title.encode("unicode_escape"),
-                    score=post.score,
-                    id=post.id,
-                    subreddit=post.subreddit,
-                    url=post.url,
-                    num_comments=post.num_comments,
-                    selftext=post.selftext.encode("unicode_escape"),
-                    created=post.created,
-                )
-            )
+        file_sr.write(f"""{post.title.encode('unicode_escape')};;;;
+                      {post.score};;;;{post.id};;;;{post.subreddit};;;;
+                      {post.url};;;;{post.num_comments};;;;
+                      {post.selftext.encode('unicode_escape')};;;;{post.created}
+                      \r""")
     except:
         pass
 
@@ -27,7 +20,7 @@ def scrape(client_id, client_secret, user_agent, subreddit):
         user_agent=user_agent,
     )
 
-    file_sr = open(os.path.join("machine_learner", "datasets", "{subreddit}.csv".format(subreddit=subreddit)), "a+")
+    file_sr = open(os.path.join("machine_learner", "datasets", f"{subreddit}.csv"), "a+")
     sr = reddit.subreddit(subreddit)
     cats = [sr.top(limit=10000), sr.hot(limit=1000), sr.random_rising(limit=1000), sr.random_rising(limit=1000), []]
     for i in range(1000):
