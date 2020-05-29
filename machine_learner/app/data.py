@@ -5,6 +5,7 @@ import re
 import cv2
 import numpy as np
 import pandas as pd
+import praw
 import requests
 from sklearn.feature_extraction.text import CountVectorizer
 from sklearn.model_selection import train_test_split
@@ -55,8 +56,6 @@ def preprocess(df, title, selftext):
         preprocessing["title_vectorizer"] = process_title(np.array(df["title"]))
     if selftext:
         preprocessing["selftext_vectorizer"] = process_selftext(np.array(df["selftext"]))
-    # Link processing to be done separately
-    preprocessing["score_scaler"] = process_score(np.array(df["score"]))
     return preprocessing
 
 def compile_data(subreddit, df, title, selftext, link, preprocessing):
@@ -74,7 +73,7 @@ def compile_data(subreddit, df, title, selftext, link, preprocessing):
         link_arr = np.array(link_arr, dtype=float)
         link_arr /= 255
         x.append(link_arr)
-    y = preprocessing["score_scaler"].transform(df["score"].to_numpy().reshape(-1, 1))
+    y = process_score(subreddit, df)
     return x, y
 
 def process_title(title_list):
@@ -83,14 +82,22 @@ def process_title(title_list):
     return title_vectorizer
 
 def process_selftext(selftext_list):
-    selftext_vectorizer = CountVectorizer(max_features=1024)
+    selftext_vectorizer = CountVectorizer(max_features=2048)
     selftext_vectorizer.fit(selftext_list)
     return selftext_vectorizer
 
-def process_score(score_list):
-    score_scaler = StandardScaler()
-    score_scaler = score_scaler.fit(score_list.reshape(-1, 1))
-    return score_scaler
+def process_score(subreddit, df):
+    reddit = praw.Reddit(client_id=os.environ["CLIENT_ID"], client_secret=os.environ["CLIENT_SECRET"], user_agent="reddit_scraper")
+    sr = reddit.subreddit(subreddit)
+    good_score = sr.subscribers // 1000 # using the arbitrary success measure of 0.1% of the sub's users in upvotes
+    score_list = df.assign(score = df["score"] >= good_score)
+    score_arr = []
+    for success in df["score"]:
+        if success:
+            score_arr.append([0, 1])
+        else:
+            score_arr.append([1, 0])
+    return np.array(score_arr)
 
 def process_link(subreddit, ref_nos):
     res_img = []

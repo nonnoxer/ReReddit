@@ -2,6 +2,7 @@
 machine_learner/link_datasets/*
 machine_learner/datasets/*
 machine_learner/models/*
+temp/*
 
 # Logs
 logs

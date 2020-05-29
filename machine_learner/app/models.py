@@ -21,13 +21,15 @@ def generate_model(title, selftext, link):
         models.append(t_flat)
     #selftext model
     if selftext:
-        s_in = Input(shape=(1024,))
-        s_embed = Embedding(2048, 1)(s_in)
-        s_lstm = LSTM(1)(s_embed)
-        s_dense1 = Dense(16, activation="relu")(s_lstm)
-        s_dense2 = Dense(1, activation="relu")(s_dense1)
+        s_in = Input(shape=(2048,))
+        s_embed = Embedding(2048, 16)(s_in)
+        s_dense1 = Dense(16, activation="relu")(s_embed)
+        s_dense2 = Dense(16, activation="relu")(s_dense1)
+        s_dense3 = Dense(16, activation="relu")(s_dense2)
+        s_dense4 = Dense(1, activation="relu")(s_dense3)
+        s_flat = Flatten()(s_dense4)
         inputs.append(s_in)
-        models.append(s_dense2)
+        models.append(s_flat)
     #link model
     if link:
         l_in = Input(shape=(64, 64, 3))
@@ -45,8 +47,8 @@ def generate_model(title, selftext, link):
     else:
         merge = models[0]
     m_1 = Dense(16, activation="relu")(merge)
-    m_out = Dense(1, activation="sigmoid")(m_1)
+    m_out = Dense(2, activation="relu")(m_1)
     model = Model(inputs=inputs, outputs=m_out)
     print(model.summary())
-    model.compile(loss='mse', optimizer='adadelta', metrics=['mse', 'mae'])
+    model.compile(loss='mse', optimizer='adadelta', metrics=['mse', 'accuracy'])
     return model

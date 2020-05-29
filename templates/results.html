@@ -9,8 +9,16 @@
 <body>
     <h1>January</h1>
     <p>Analyse your potential <a href="https://reddit.com">Reddit</a> submissions using <i>machine learning</i> to predict how good they are!</p>
+    {% if title != "" %}
     <p><b>{{ title }}</b></p>
+    {% endif %}
+    {% if selftext != "" %}
     <p>{{ selftext }}</p>
-    <img src="{{link}}">
+    {% endif %}
+    {% if link != "" %}
+    <img src="{{ url_for('static', filename=link) }}" width="256px">
+    {% endif %}
     <p>Your predicted points: {{ prediction }}</p>
+    <p><a href="/">Home</a></p>
+    <p><a href="/admin">Admin Panel</a></p>
 </body>

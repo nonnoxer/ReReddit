@@ -2,7 +2,7 @@ import os
 
 import cv2
 import numpy as np
-from flask import Flask, Markup, redirect, render_template, request
+from flask import Flask, Markup, redirect, render_template, request, url_for
 from keras import backend
 from keras.models import load_model
 from sqlalchemy import Boolean, Column, Integer, String, create_engine
@@ -10,12 +10,10 @@ from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import sessionmaker
 from werkzeug.utils import secure_filename
 
-from machine_learner.app.data import generate_preprocessing, process_link, download_link
+from machine_learner.app.data import (download_link, generate_preprocessing,
+                                      process_link)
 from machine_learner.app.scraper import scrape
 from machine_learner.app.train import train_model
-
-# Ensure env variables set up
-print(os.environ["CLIENT_ID"], os.environ["CLIENT_SECRET"], os.environ["DATABASE_URL"])
 
 app = Flask(__name__)
 error = {"error": ""}
@@ -59,7 +57,6 @@ def r_subreddit(subreddit):
     settings = session.query(Subreddit).filter(Subreddit.name==subreddit).first()
     if settings is not None:
         form = ""
-        print(settings.title, settings.selftext, settings.link)
         if settings.title:
             form += "<input type='text' name='title' placeholder='Title'><br>"
         if settings.selftext:
@@ -79,7 +76,7 @@ def analyse_done():
     preprocessing = generate_preprocessing(subreddit, settings.title, settings.selftext, settings.link)
     title = ""
     selftext = ""
-    link_path = ""
+    link_path_show = ""
     if settings.title:
         title = request.form["title"]
         x.append(preprocessing["title_vectorizer"].transform([title]).toarray())
@@ -89,18 +86,19 @@ def analyse_done():
     if settings.link:
         if "link" in request.files:
             img = request.files["link"]
-            link_path = os.path.join("temp", secure_filename(img.filename))
+            link_path = os.path.join("static", "temp", secure_filename(img.filename))
+            link_path_show = f"temp/{secure_filename(img.filename)}"
             img.save(link_path)
             read_img = cv2.imread(link_path)
-            res = cv2.resize(read_img, (256, 256))
-            link = np.asarray(res).astype("float")
+            res = cv2.resize(read_img, (64, 64))
+            link = np.asarray([res]).astype("float")
             link /= 255
             x.append(link)
     model = load_model(os.path.join("machine_learner", "models", f"{subreddit}.h5"))
     prediction = model.predict(x)
     backend.clear_session()
-    prediction = int(preprocessing["score_scaler"].inverse_transform(prediction[0])[0])
-    return render_template("results.html", title=title, selftext=selftext, link=link_path, prediction=prediction)
+    #prediction = int(preprocessing["score_scaler"].inverse_transform(prediction[0])[0])
+    return render_template("results.html", title=title, selftext=selftext, link=link_path_show, prediction=prediction)
 
 @app.route("/admin")
 def admin():
@@ -113,7 +111,6 @@ def admin():
                 temp.append("checked")
             else:
                 temp.append("")
-        print(i.title, i.selftext, i.link)
         table += """
         <tr><form action="/admin/edit/done" method="POST">
             <td><input type="text" name="name" value="{name}" readonly></td>
@@ -149,12 +146,10 @@ def admin():
 @app.route("/admin/edit/done", methods=["POST"])
 def admin_edit_done():
     name = request.form["name"]
-    print(name)
     config = {"title": False, "selftext": False, "link": False}
     for key in config:
         if key in request.form:
             config[key] = True
-    print(config)
     subreddit = session.query(Subreddit).filter(Subreddit.name==name).first()
     if subreddit is not None:
         subreddit.title, subreddit.selftext, subreddit.link = config["title"], config["selftext"], config["link"]
@@ -215,7 +210,6 @@ def admin_train_done():
         title, selftext, link = subreddit.title, subreddit.selftext, subreddit.link
     else:
         return redirect("/admin/new")
-    print(title, selftext, link)
     train_model(name, title, selftext, link, epochs, batch_size)
     backend.clear_session()
     return redirect("/admin")
