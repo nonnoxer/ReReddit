@@ -13,6 +13,7 @@ from sklearn.preprocessing import StandardScaler
 
 
 def process_data(subreddit, title, selftext, link):
+    """Read and filter CSV, prepare data for training"""
     filtered_df = filter_df(subreddit, title, selftext, link)
     preprocessing = preprocess(filtered_df, title, selftext)
     (train, test) = train_test_split(filtered_df, test_size=0.25, random_state=42)
@@ -21,6 +22,7 @@ def process_data(subreddit, title, selftext, link):
     return (trainX, trainY, testX, testY)#, {"title_words": preprocessing.get("title_words"), "selftext_words": preprocessing.get("selftext_words")}
 
 def filter_df(subreddit, title, selftext, link):
+    """Remove bad data entries based on subreddit content type"""
     cols = ["title", "score", "id", "subreddit",
             "link", "num_comments", "selftext", "created"]
     if link:
@@ -51,6 +53,7 @@ def filter_df(subreddit, title, selftext, link):
     return filtered_df
 
 def preprocess(df, title, selftext):
+    """Generate corresponding title and selftext vectorizers"""
     preprocessing = {}
     if title:
         preprocessing["title_vectorizer"] = process_title(np.array(df["title"]))
@@ -59,6 +62,7 @@ def preprocess(df, title, selftext):
     return preprocessing
 
 def compile_data(subreddit, df, title, selftext, link, preprocessing):
+    """Finish preparing each part of the data based on subreddit content type"""
     x = []
     words = {}
     if title:
@@ -77,29 +81,36 @@ def compile_data(subreddit, df, title, selftext, link, preprocessing):
     return x, y
 
 def process_title(title_list):
+    """Generate and fit a count vectorizer on title list"""
     title_vectorizer = CountVectorizer(max_features=1024)
     title_vectorizer.fit(title_list)
     return title_vectorizer
 
 def process_selftext(selftext_list):
+    """Generate and fit a count vectorizer on selftext list"""
     selftext_vectorizer = CountVectorizer(max_features=2048)
     selftext_vectorizer.fit(selftext_list)
     return selftext_vectorizer
 
 def process_score(subreddit, df):
-    reddit = praw.Reddit(client_id=os.environ["CLIENT_ID"], client_secret=os.environ["CLIENT_SECRET"], user_agent="reddit_scraper")
-    sr = reddit.subreddit(subreddit)
-    good_score = sr.subscribers // 1000 # using the arbitrary success measure of 0.1% of the sub's users in upvotes
-    score_list = df.assign(score = df["score"] >= good_score)
+    """Sort scores into success or fail based on data mean"""
+    good_score = df["score"].mean()
+    print(good_score)
+    df = df.assign(score = df["score"] >= good_score)
     score_arr = []
+    yes, no = 0, 0
     for success in df["score"]:
         if success:
             score_arr.append([0, 1])
+            yes += 1
         else:
             score_arr.append([1, 0])
+            no += 1
+    print(f"Yes: {yes}, No: {no}")
     return np.array(score_arr)
 
 def process_link(subreddit, ref_nos):
+    """Load all corresponding images and resize them to 64x64 px"""
     res_img = []
     for i in ref_nos:
         img = cv2.imread(os.path.join("machine_learner", "link_datasets", subreddit, i))
@@ -111,6 +122,7 @@ def process_link(subreddit, ref_nos):
     return res_img
 
 def download_link(subreddit, title, selftext, link):
+    """Download all images for later use"""
     assert link
     if not os.path.exists(os.path.join("machine_learner", "link_datasets", subreddit)):
         os.makedirs(os.path.join("machine_learner", "link_datasets", subreddit))
@@ -125,11 +137,6 @@ def download_link(subreddit, title, selftext, link):
         f.write(requests.get(i).content)
         f.close()
         counter += 1
-
-def generate_preprocessing(subreddit, title, selftext, link):
-    filtered_df = filter_df(subreddit, title, selftext, link)
-    preprocessing = preprocess(filtered_df, title, selftext)
-    return preprocessing
 
 # "Human" sorting by Ned Batchelder https://nedbatchelder.com/blog/200712/human_sorting.html
 def tryint(s):

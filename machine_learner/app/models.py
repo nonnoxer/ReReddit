@@ -1,12 +1,12 @@
 #from tensorflow_core._api.v2.compat.v1.keras.layers import CuDNNLSTM
 from keras.engine.input_layer import Input
 from keras.layers import (
-    LSTM, Concatenate, Conv2D, Dense, Dropout, Embedding, Flatten,
-    MaxPooling2D)
+    LSTM, Concatenate, Conv2D, Dense, Embedding, Flatten, MaxPooling2D)
 from keras.models import Model, Sequential
 
 
 def generate_model(title, selftext, link):
+    """Generate an ML model based on the content type of the subreddit"""
     inputs, models = [], []
     #title model
     if title:
@@ -46,9 +46,9 @@ def generate_model(title, selftext, link):
         merge = Concatenate()(models)
     else:
         merge = models[0]
-    m_1 = Dense(16, activation="relu")(merge)
-    m_out = Dense(2, activation="relu")(m_1)
+    m_dense1 = Dense(16, activation="relu")(merge)
+    m_out = Dense(2, activation="relu")(m_dense1)
     model = Model(inputs=inputs, outputs=m_out)
     print(model.summary())
-    model.compile(loss='mse', optimizer='adadelta', metrics=['mse', 'accuracy'])
+    model.compile(loss='mse', optimizer='adam', metrics=['mse'])
     return model

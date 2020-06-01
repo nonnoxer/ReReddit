@@ -5,10 +5,10 @@
     <link rel="stylesheet" type="text/css" href="{{ url_for('static', filename='style.css') }}">
     <link rel="shortcut icon" href="{{ url_for('static', filename='favicon.ico') }}" type="image/x-icon">
     <link rel="icon" href="{{ url_for('static', filename='favicon.ico') }}" type="image/x-icon">
+    <title>Analysis Results</title>
 </head>
 <body>
     <h1>January</h1>
-    <p>Analyse your potential <a href="https://reddit.com">Reddit</a> submissions using <i>machine learning</i> to predict how good they are!</p>
     {% if title != "" %}
     <p><b>{{ title }}</b></p>
     {% endif %}
@@ -16,9 +16,10 @@
     <p>{{ selftext }}</p>
     {% endif %}
     {% if link != "" %}
-    <img src="{{ url_for('static', filename=link) }}" width="256px">
+    <img src="{{ url_for('static', filename=link) }}" width="256px"><br>
     {% endif %}
-    <p>Your predicted points: {{ prediction }}</p>
+    <br>
+    <p>Your post is predicted to be a <b>{{result}}</b></p>
     <p><a href="/">Home</a></p>
     <p><a href="/admin">Admin Panel</a></p>
 </body>

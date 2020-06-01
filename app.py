@@ -10,20 +10,22 @@ from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import sessionmaker
 from werkzeug.utils import secure_filename
 
-from machine_learner.app.data import (download_link, generate_preprocessing,
+from machine_learner.app.data import (download_link, filter_df, preprocess,
                                       process_link)
 from machine_learner.app.scraper import scrape
 from machine_learner.app.train import train_model
 
 app = Flask(__name__)
-error = {"error": ""}
 
+# Create database session
 engine = create_engine(os.environ["DATABASE_URL"], echo=True)
 Base = declarative_base()
 Session = sessionmaker(bind=engine)
 session = Session()
 
 class Subreddit(Base):
+    """Subreddit class for database to store content types"""
+
     __tablename__ = 'subreddits'
 
     id = Column(Integer, primary_key=True, autoincrement=True)
@@ -32,15 +34,16 @@ class Subreddit(Base):
     selftext = Column(Boolean)
     link = Column(Boolean)
 
-#Base.metadata.create_all(engine)
+# Base.metadata.create_all(engine)
 
-def get_model(subreddit):    
-    model = load_model(os.path.join("machine_learner", "models", f"{subreddit}.h5"))
-    return model
+# Remove files stored in static/temp directory
+temp_files = os.listdir(os.path.join("static", "temp"))
+for temp_file in temp_files:
+    os.remove(os.path.join("static", "temp", temp_file))
 
-# Main page
 @app.route("/")
 def root():
+    """Home page"""
     settings = session.query(Subreddit).order_by(Subreddit.name).all()
     subreddits = ""
     for i in settings:
@@ -49,11 +52,13 @@ def root():
 
 @app.route("/r", methods=["POST"])
 def submit():
+    """Redirect to specific subreddit prediction page"""
     subreddit = request.form["subreddit"]
     return redirect(f"/r/{subreddit}")
 
 @app.route("/r/<subreddit>")
 def r_subreddit(subreddit):
+    """Specific subreddit page to accept user data according to subreddit content types"""
     settings = session.query(Subreddit).filter(Subreddit.name==subreddit).first()
     if settings is not None:
         form = ""
@@ -65,25 +70,26 @@ def r_subreddit(subreddit):
             form += "<input type='file' name='link' accept='image/x-png, image/jpeg'><br>"
         return render_template("r_subreddit.html", subreddit=subreddit, form=Markup(form))
     else:
-        error["message"] = "alert('Subreddit is unavailable to predict');"
         return redirect("/")
 
 @app.route("/analyse/done", methods=["POST"])
 def analyse_done():
-    subreddit = request.form["subreddit"]
-    settings = session.query(Subreddit).filter(Subreddit.name == subreddit).first()
+    """Process user data, predict, show results page"""
+    name = request.form["subreddit"]
+    subreddit = session.query(Subreddit).filter(Subreddit.name == name).first()
     x = []
-    preprocessing = generate_preprocessing(subreddit, settings.title, settings.selftext, settings.link)
+    filtered_df = filter_df(name, subreddit.title, subreddit.selftext, subreddit.link)
+    preprocessing = preprocess(filtered_df, subreddit.title, subreddit.selftext)
     title = ""
     selftext = ""
     link_path_show = ""
-    if settings.title:
+    if subreddit.title:
         title = request.form["title"]
         x.append(preprocessing["title_vectorizer"].transform([title]).toarray())
-    if settings.selftext:
+    if subreddit.selftext:
         selftext = request.form["selftext"]
         x.append(preprocessing["selftext_vectorizer"].transform([selftext]).toarray())
-    if settings.link:
+    if subreddit.link:
         if "link" in request.files:
             img = request.files["link"]
             link_path = os.path.join("static", "temp", secure_filename(img.filename))
@@ -94,14 +100,18 @@ def analyse_done():
             link = np.asarray([res]).astype("float")
             link /= 255
             x.append(link)
-    model = load_model(os.path.join("machine_learner", "models", f"{subreddit}.h5"))
+    model = load_model(os.path.join("machine_learner", "models", f"{name}.h5"))
     prediction = model.predict(x)
     backend.clear_session()
-    #prediction = int(preprocessing["score_scaler"].inverse_transform(prediction[0])[0])
-    return render_template("results.html", title=title, selftext=selftext, link=link_path_show, prediction=prediction)
+    if prediction[0][0] > prediction[0][1]:
+        result = "failure"
+    else:
+        result = "success"
+    return render_template("results.html", title=title, selftext=selftext, link=link_path_show, result=result)
 
 @app.route("/admin")
 def admin():
+    """Admin page for managing data and machine learning models"""
     subreddits = session.query(Subreddit).order_by(Subreddit.id).all()
     table = ""
     for i in subreddits:
@@ -145,6 +155,7 @@ def admin():
 
 @app.route("/admin/edit/done", methods=["POST"])
 def admin_edit_done():
+    """Edit content types of subreddit"""
     name = request.form["name"]
     config = {"title": False, "selftext": False, "link": False}
     for key in config:
@@ -158,10 +169,12 @@ def admin_edit_done():
 
 @app.route("/admin/new")
 def admin_new():
+    """Page for adding a new subreddit"""
     return render_template("admin_new.html")
 
 @app.route("/admin/new/done", methods=["POST"])
 def admin_new_done():
+    """Add a new subreddit"""
     name = request.form["subreddit"]
     config = {"title": False, "selftext": False, "link": False}
     for key in config:
@@ -174,22 +187,26 @@ def admin_new_done():
 
 @app.route("/admin/scrape", methods=["POST"])
 def admin_scrape():
+    """Page for scraping data from a subreddit"""
     subreddit = request.form["subreddit"]
     return render_template("admin_scrape.html", subreddit=subreddit)
 
 @app.route("/admin/scrape/done", methods=["POST"])
 def admin_scrape_done():
+    """Scrape data from a subreddit"""
     name = request.form["subreddit"]
     scrape(os.environ["CLIENT_ID"], os.environ["CLIENT_SECRET"], "reddit_scraper", name)
     return redirect("/admin")
 
 @app.route("/admin/download", methods=["POST"])
 def admin_download():
+    """Page for downloading images from a subreddit"""
     subreddit = request.form["subreddit"]
     return render_template("admin_download.html", subreddit=subreddit)
 
 @app.route("/admin/download/done", methods=["POST"])
 def admin_download_done():
+    """Download images from a subreddit"""
     name = request.form["subreddit"]
     subreddit = session.query(Subreddit).filter(Subreddit.name==name).first()
     download_link(name, subreddit.title, subreddit.selftext, subreddit.link)
@@ -197,11 +214,13 @@ def admin_download_done():
 
 @app.route("/admin/train", methods=["POST"])
 def admin_train():
+    """Page for training a subreddit machine learning model"""
     subreddit = request.form["subreddit"]
     return render_template("admin_train.html", subreddit=subreddit)
 
 @app.route("/admin/train/done", methods=["POST"])
 def admin_train_done():
+    """Train a subreddit machine learning model"""
     name = request.form["subreddit"]
     epochs = int(request.form["epochs"])
     batch_size = int(request.form["batch_size"])
