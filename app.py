@@ -1,3 +1,4 @@
+from multiprocessing import Process
 import os
 
 import cv2
@@ -14,6 +15,7 @@ from machine_learner.app.data import (download_link, filter_df, preprocess,
                                       process_link)
 from machine_learner.app.scraper import scrape
 from machine_learner.app.train import train_model
+
 
 app = Flask(__name__)
 
@@ -195,7 +197,8 @@ def admin_scrape():
 def admin_scrape_done():
     """Scrape data from a subreddit"""
     name = request.form["subreddit"]
-    scrape(os.environ["CLIENT_ID"], os.environ["CLIENT_SECRET"], "reddit_scraper", name)
+    scrape_process = Process(target=scrape, args=(os.environ["CLIENT_ID"], os.environ["CLIENT_SECRET"], "reddit_scraper", name))
+    scrape_process.start()
     return redirect("/admin")
 
 @app.route("/admin/download", methods=["POST"])
@@ -209,7 +212,8 @@ def admin_download_done():
     """Download images from a subreddit"""
     name = request.form["subreddit"]
     subreddit = session.query(Subreddit).filter(Subreddit.name==name).first()
-    download_link(name, subreddit.title, subreddit.selftext, subreddit.link)
+    download_link_process = Process(target=download_link, args=(name, subreddit.title, subreddit.selftext, subreddit.link))
+    download_link_process.start()
     return redirect("/admin")
 
 @app.route("/admin/train", methods=["POST"])
@@ -229,9 +233,11 @@ def admin_train_done():
         title, selftext, link = subreddit.title, subreddit.selftext, subreddit.link
     else:
         return redirect("/admin/new")
-    train_model(name, title, selftext, link, epochs, batch_size)
+    train_model_process = Process(target=train_model, args=(name, title, selftext, link, epochs, batch_size))
+    train_model_process.start()
     backend.clear_session()
     return redirect("/admin")
+
 
 if __name__ == "__main__":
     app.run(debug=True)
