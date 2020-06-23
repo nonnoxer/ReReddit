@@ -1,5 +1,5 @@
-from multiprocessing import Process
 import os
+from multiprocessing import Process
 
 import cv2
 import numpy as np
@@ -15,7 +15,6 @@ from machine_learner.app.data import (download_link, filter_df, preprocess,
                                       process_link)
 from machine_learner.app.scraper import scrape
 from machine_learner.app.train import train_model
-
 
 app = Flask(__name__)
 
@@ -39,10 +38,13 @@ class Subreddit(Base):
 # Base.metadata.create_all(engine)
 
 # Remove files stored in static/temp directory
-temp_files = os.listdir(os.path.join("static", "temp"))
-for temp_file in temp_files:
-    os.remove(os.path.join("static", "temp", temp_file))
-
+try:
+    temp_files = os.listdir(os.path.join("static", "temp"))
+    for temp_file in temp_files:
+        os.remove(os.path.join("static", "temp", temp_file))
+except FileNotFoundError:
+    os.makedirs(os.path.join("static", "temp"))
+    
 @app.route("/")
 def root():
     """Home page"""
@@ -238,6 +240,6 @@ def admin_train_done():
     backend.clear_session()
     return redirect("/admin")
 
-
 if __name__ == "__main__":
     app.run(debug=True)
+

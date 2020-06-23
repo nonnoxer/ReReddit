@@ -10,8 +10,8 @@ def generate_model(title, selftext, link):
     inputs, models = [], []
     #title model
     if title:
-        t_in = Input(shape=(1024,))
-        t_embed = Embedding(1024, 16)(t_in)
+        t_in = Input(shape=(2048,))
+        t_embed = Embedding(2048, 16)(t_in)
         t_dense1 = Dense(16, activation="relu")(t_embed)
         t_dense2 = Dense(16, activation="relu")(t_dense1)
         t_dense3 = Dense(16, activation="relu")(t_dense2)
@@ -32,8 +32,8 @@ def generate_model(title, selftext, link):
         models.append(s_flat)
     #link model
     if link:
-        l_in = Input(shape=(64, 64, 3))
-        l_conv1 = Conv2D(32, (3, 3), input_shape=(3, 256, 256), activation="relu")(l_in)
+        l_in = Input(shape=(128, 128, 3))
+        l_conv1 = Conv2D(32, (3, 3), input_shape=(3, 128, 128), activation="relu")(l_in)
         l_pool1 = MaxPooling2D(pool_size=(2, 2))(l_conv1)
         l_conv2 = Conv2D(32, (3, 3), activation="relu")(l_pool1)
         l_pool2 = MaxPooling2D(pool_size=(2, 2))(l_conv2)  

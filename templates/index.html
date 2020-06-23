@@ -5,16 +5,15 @@
     <link rel="stylesheet" type="text/css" href="{{ url_for('static', filename='style.css') }}">
     <link rel="shortcut icon" href="{{ url_for('static', filename='favicon.ico') }}" type="image/x-icon">
     <link rel="icon" href="{{ url_for('static', filename='favicon.ico') }}" type="image/x-icon">
-    <title>January</title>
+    <title>ReReddit</title>
 </head>
 <body>
-    <h1>January</h1>
+    <h1>ReReddit</h1>
     <p>Analyse your potential <a href="https://reddit.com">Reddit</a> submissions using <i>machine learning</i> to predict how good they are!</p>
     <form action="/r" id="submit" method="POST">
         <input list="subreddits" name="subreddit">
         <datalist id="subreddits">{{ subreddits }}</datalist><br>
         <input type="submit" value="Go">
     </form>
-    <p>(So named because Janus was a mythological Greek god who looked into the past and future, rather like how machine learning is)</p>
     <p><a href="/admin">Admin Panel</a></p>
 </body>

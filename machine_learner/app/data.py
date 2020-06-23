@@ -1,6 +1,7 @@
 import glob
 import os
 import re
+import sys
 
 import cv2
 import numpy as np
@@ -82,7 +83,7 @@ def compile_data(subreddit, df, title, selftext, link, preprocessing):
 
 def process_title(title_list):
     """Generate and fit a count vectorizer on title list"""
-    title_vectorizer = CountVectorizer(max_features=1024)
+    title_vectorizer = CountVectorizer(max_features=2048)
     title_vectorizer.fit(title_list)
     return title_vectorizer
 
@@ -95,7 +96,6 @@ def process_selftext(selftext_list):
 def process_score(subreddit, df):
     """Sort scores into success or fail based on data mean"""
     good_score = df["score"].mean()
-    print(good_score)
     df = df.assign(score = df["score"] >= good_score)
     score_arr = []
     yes, no = 0, 0
@@ -106,7 +106,6 @@ def process_score(subreddit, df):
         else:
             score_arr.append([1, 0])
             no += 1
-    print(f"Yes: {yes}, No: {no}")
     return np.array(score_arr)
 
 def process_link(subreddit, ref_nos):
@@ -115,9 +114,9 @@ def process_link(subreddit, ref_nos):
     for i in ref_nos:
         img = cv2.imread(os.path.join("machine_learner", "link_datasets", subreddit, i))
         try:
-            res = cv2.resize(img, (64, 64))
+            res = cv2.resize(img, (128, 128))
         except:
-            res = [[[0, 0, 0]] * 64] * 64 #in the rare case a gif slips through, just mark it with a black picture
+            res = [[[0, 0, 0]] * 128] * 128 #in the rare case a gif slips through, just mark it with a black picture
         res_img.append(res)
     return res_img
 
@@ -127,6 +126,7 @@ def download_link(subreddit, title, selftext, link):
     if not os.path.exists(os.path.join("machine_learner", "link_datasets", subreddit)):
         os.makedirs(os.path.join("machine_learner", "link_datasets", subreddit))
     filtered_df = filter_df(subreddit, title, selftext, link)
+    df_len = len(filtered_df)
     counter = 0
     for i in filtered_df["link"]:
         if i.find("jpg") != -1:
@@ -137,6 +137,9 @@ def download_link(subreddit, title, selftext, link):
         f.write(requests.get(i).content)
         f.close()
         counter += 1
+        progress = int(round(counter / df_len, 2) * 100)
+        sys.stdout.write(f"\rDownload progress: {progress}% complete")
+    print("\nDownload complete!")
 
 # "Human" sorting by Ned Batchelder https://nedbatchelder.com/blog/200712/human_sorting.html
 def tryint(s):
